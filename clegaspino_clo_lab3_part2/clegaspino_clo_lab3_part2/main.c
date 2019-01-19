@@ -33,23 +33,26 @@ int main(void)
 		val = PINA;
 		tmp = 0x00;
 		
-		if(val == 0x01 || val == 0x02){
+		if(val <= 2){
 			tmp = 0x01 << 5 | 0x40;
 		}
-		else if(val == 0x03 || val == 0x04){
+		else if(val <= 4){
 			tmp = 0x03 << 4 | 0x40;
 		}
-		else if(val == 0x05 || val == 0x06){
-			tmp = 0x06 << 3;
+		else if(val <= 6){
+			tmp = 0x07 << 3;
 		}
-		else if(val == 0x07 || val == 0x08 || val == 0x09){
+		else if(val <= 9){
 			tmp = 0x0F << 2;
 		}
-		else if(val == 0x0A || val == 0x0B || val == 0x0C){
+		else if(val <= 12){
 			tmp = 0x1F << 1;
 		}
-		else if(val == 0x0D || val == 0x0E || val == 0x0F){
-			tmp = 0x2F;
+		else if(val <= 15){
+			tmp = 0x3F;
+		}
+		else{
+			tmp = 0;
 		}
 		PORTC = tmp;
 		
