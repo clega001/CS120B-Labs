@@ -2,7 +2,7 @@
  * Christian Legaspino & clega001@ucr.edu
  * Carissa Lo & clo020@ucr.edu
  * Lab Section: 23
- * Assignment: Lab 3 Exercise 2
+ * Assignment: Lab 3 Exercise 3
  * 
  * I acknowledge all content contained herein, excluding template or 
  * example code, is my own original work.
@@ -26,33 +26,47 @@ int main(void)
 	//DDRB = 0x00; PORTB = 0xFF; 
 	DDRC = 0xFF; PORTC = 0x00;
 
-	unsigned char val = 0x00; unsigned char val1 = 0x00;
+	unsigned char val = 0x00;
+	unsigned char belt = 0x00;
 	unsigned char tmp = 0x00;
 	
 	while(1){
-		val = PINA;
+		val = PINA & 0x0F;
+		belt = PINA;
 		tmp = 0x00;
 		
-		val1 = val & 0x0F;
-		
-		if(val1 == 0x01 || val1 == 0x02){
+		if(val == 0){
+			tmp = 0x40;
+		}
+		else if(val <= 2){
 			tmp = 0x01 << 5 | 0x40;
 		}
-		else if(val1 == 0x03 || val1 == 0x04){
+		else if(val <= 4){
 			tmp = 0x03 << 4 | 0x40;
 		}
-		else if(val1 == 0x05 || val1 == 0x06){
-			tmp = 0x06 << 3;
+		else if(val <= 6){
+			tmp = 0x07 << 3;
 		}
-		else if(val1 == 0x07 || val1 == 0x08 || val1 == 0x09){
+		else if(val <= 9){
 			tmp = 0x0F << 2;
 		}
-		else if(val1 == 0x0A || val1 == 0x0B || val1 == 0x0C){
+		else if(val <= 12){
 			tmp = 0x1F << 1;
 		}
-		else if(val1 == 0x0D || val1 == 0x0E || val1 == 0x0F){
-			tmp = 0x2F;
+		else if(val <= 15){
+			tmp = 0x3F;
 		}
+		else{
+			tmp = 0;
+		}
+		
+		if(GetBit(belt,4) && GetBit(belt,5)){
+			if(!GetBit(belt,7)){
+				tmp = tmp | 0x80;
+			}
+		}
+		
 		PORTC = tmp;
+		
 	}
 }
