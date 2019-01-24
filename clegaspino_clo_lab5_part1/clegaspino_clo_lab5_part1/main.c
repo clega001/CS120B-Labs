@@ -23,13 +23,14 @@ int main(void)
 {
 
 	DDRA = 0x00; PORTA = 0xFF; 
-	DDRB = 0x00; PORTB = 0xFF; 
+	DDRB = 0xFF; PORTB = 0x00; 
 
 	unsigned char val = 0x00;
 	unsigned char tmp = 0x00;
 	
 	while(1){
-		val = PINA;
+		
+		val = ~PINA;
 		tmp = 0x00;
 		
 		if(val <= 2){
@@ -57,6 +58,3 @@ int main(void)
 		
 	}
 }
-
-
-
