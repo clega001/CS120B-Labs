@@ -57,6 +57,7 @@ void Ticks(){
 			PORTB = PORTB + 1;
 			break;
 		default:
+			PORTB = 0;
 			break;
 	}
 }
