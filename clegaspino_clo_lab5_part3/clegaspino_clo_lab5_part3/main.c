@@ -11,15 +11,19 @@
 #include <avr/io.h>
 
 enum States{START, WAIT, B_PRESS, B_RELEASE} state;
+	
+unsigned char b0 = 0x00;
 
 void Ticks(){
+	
+	b0 = PINA & 0x01;
 	
 	switch(state){
 		case START:
 			state = WAIT;
 			break;
 		case WAIT:
-			if(!PINA0){
+			if(!b0){
 				state = B_PRESS;
 			}
 			else{
@@ -27,7 +31,7 @@ void Ticks(){
 			}
 			break;
 		case B_PRESS:
-			if(!PINA0){
+			if(!b0){
 				state = B_PRESS;
 			}
 			else{
@@ -50,15 +54,7 @@ void Ticks(){
 		case B_PRESS:
 			break;
 		case B_RELEASE:
-			if(PORTB == 0){
-				PORTB = (PORTB << 1) + 1;
-			}
-			else if(PORTB == 63){
-				PORTB = 0;
-			}
-			else{
-				PORTB = (PORTB << 1) + 1;
-			}
+			PORTB = PORTB + 1;
 			break;
 		default:
 			break;
