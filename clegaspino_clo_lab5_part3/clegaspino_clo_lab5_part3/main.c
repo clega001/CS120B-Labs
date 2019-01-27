@@ -3,61 +3,105 @@
  * Carissa Lo & clo020@ucr.edu
  * Lab Section: 23
  * Assignment: Lab 5 Exercise 3
+ *
+ * Lab challenge was to create a festive light sequence with only one button. 
  * 
  * I acknowledge all content contained herein, excluding template or example
  * code, is my own original work.
  */ 
 
-#include <avr/io.h>
 
-enum States{START, WAIT, B_PRESS, B_RELEASE} state;
-	
+#include <avr/io.h>
+//#include <avr/delay.h>
+//#include "RIMS.h"
+
+
+//_delay_ms();
+enum States{INIT, S1, S2, LIGHT_PRESS, LIGHT_RELEASE, LIGHT_2_PRESS, LIGHT_2_RELEASE} state;
+
 unsigned char b0 = 0x00;
+unsigned char tmp = 0x00;
 
 void Ticks(){
 	
 	b0 = PINA & 0x01;
 	
 	switch(state){
-		case START:
-			state = WAIT;
+		case INIT:
+			state = S1;
 			break;
-		case WAIT:
-			if(!b0){
-				state = B_PRESS;
+			
+		case S1:
+			if(!b0 && PORTB != 0x3F){
+				state = LIGHT_PRESS;
+				break;
+			}
+			else if(!b0 && PORTB == 0x3F){
+				state = LIGHT_2_PRESS;
+				break;
 			}
 			else{
-				state = WAIT;
+				state = S1;
+				break;
 			}
-			break;
-		case B_PRESS:
-			if(!b0){
-				state = B_PRESS;
+		case S2:
+			if(!b0 && PORTB != 0x00){
+				state = LIGHT_2_PRESS;
+				break;
+			}
+			else if(!b0 && PORTB == 0x00){
+				state = LIGHT_PRESS;
+				break;
 			}
 			else{
-				state = B_RELEASE;
+				state = S2;
+				break;
 			}
+		case LIGHT_PRESS:
+			if(!b0){
+				state = LIGHT_PRESS;
+				break;
+			}
+			else{
+				state = LIGHT_RELEASE;
+				break;
+			}
+		case LIGHT_RELEASE:
+			state = S1;
 			break;
-		case B_RELEASE:
-			state = WAIT;
+		case LIGHT_2_PRESS:
+			if(!b0){
+				state = LIGHT_2_PRESS;
+				break;
+			}
+			else{
+				state = LIGHT_2_RELEASE;
+				break;
+			}
+		case LIGHT_2_RELEASE:
+			state = S2;
 			break;
 		default:
-			state = START;
 			break;
 	}
 	switch(state){
-		case START:
-			PORTB = 0;
+		case INIT:
+			PORTB = 0x00;
 			break;
-		case WAIT:
+		case S1:
 			break;
-		case B_PRESS:
+		case LIGHT_PRESS:
 			break;
-		case B_RELEASE:
-			PORTB = PORTB + 1;
+		case LIGHT_RELEASE:
+			tmp = PORTB << 1;
+			PORTB = tmp + 1;
 			break;
+		case LIGHT_2_PRESS:
+			break;
+		case LIGHT_2_RELEASE:
+			tmp = PORTB >> 1;
+			PORTB = tmp;
 		default:
-			PORTB = 0;
 			break;
 	}
 }
@@ -67,6 +111,8 @@ int main(void)
 	DDRA = 0x00; PORTA = 0xFF;
 	DDRB = 0xFF; PORTB = 0x00;
 	
-	state = START;
-	while (1) {Ticks();}
+	state = INIT;
+	while (1) {
+		Ticks();
+	}
 }
