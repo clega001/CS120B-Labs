@@ -125,8 +125,8 @@ int main()
 	TimerSet(100);
 	TimerOn();
 	
-	PORTB = 0x01;
-	
+	//PORTB = 0x01;
+	state = INIT;
 	while(1) {
 		// User code (i.e. synchSM calls)
 		Tick();

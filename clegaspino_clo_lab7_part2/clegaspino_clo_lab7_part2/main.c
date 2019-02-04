@@ -39,88 +39,65 @@ ISR(TIMER1_COMPA_vect) {
 	}
 }
 
-enum States{Start, Init, Inc, Inc_Wait, Dec, Dec_Wait, Reset, Reset_Wait}state;
-unsigned char b = 0x00;
+enum States{Start, Init, Press, Press_Release}state;
+unsigned char b0 = 0x00;
 unsigned char val = 0x00;
-unsigned char cnt = 0x00;
+unsigned char temp = 0x00;
 void Tick(){
-	b = (~PINA) & 0x03;
+	b0 = PINA & 0x01;
 	switch(state){
 		case Start:
-		LCD_Cursor(1);
-		LCD_WriteData( val + '0' );
-		state = Init;
-		break;
+			state = Init;
+			break;
 		case Init:
-		if(b == 0x02){
-			state = Dec;
-		}
-		else if(b == 0x01){
-			state = Inc;
-		}
-		break;
-		case Inc:
-		if(val < 9){
-			val++;
-		}
-		LCD_Cursor(1);
-		LCD_WriteData(val + '0');
-		state = Inc_Wait;
-		break;
-		case Inc_Wait:
-		if(b == 0x03){
-			cnt = 0;
-			state = Reset;
-		}
-		else if(b == 0){
-			cnt = 0;
+			if(~b0){
+				state = Press;
+			}
+			else{
+				state = Init;
+			}
+			break;
+		case Press:
+			if(~b0){
+				state = Press;
+			}
+			else{
+				state = Press_Release;
+			}
+			break;
+		case Press_Release:
 			state = Init;
-		}
-		else if((b == 0x01) & (cnt == 10)){
-			state = Inc;
-			cnt = 0;
-		}
-		else{
-			state = Inc_Wait;
-			cnt++;
-		}
-		break;
-		case Dec:
-		if(val > 0){
-			val--;
-		}
-		LCD_Cursor(1);
-		LCD_WriteData(val + '0');
-		state = Dec_Wait;
-		break;
-		case Dec_Wait:
-		if(b == 0x03){
-			cnt = 0;
-			state = Reset;
-		}
-		else if(b == 0){
-			cnt = 0;
-			state = Init;
-		}
-		else if((b == 0x02) & (cnt == 10)){
-			state = Dec;
-			cnt = 0;
-		}
-		else{
-			state = Dec_Wait;
-			cnt++;
-		}
-		break;
-		case Reset:
-		val = 0;
-		LCD_Cursor(1);
-		LCD_WriteData(val + '0');
-		state = Init;
-		break;
+			break;
 		default:
-		state = Start;
-		break;
-		
+			state = Start;
+			break;
+		switch(state){
+			case Start:
+				PORTB = 0x01;
+				val = 5;
+				LCD_Cursor(1);
+				LCD_WriteData(val + '0');
+				break;
+			case Init:
+				if(PORTB == 0x04){
+					PORTB = 0x01;
+				}
+				else{
+					temp = PORTB << 1;
+					PORTB = temp;
+				}
+				break;
+			case Press:
+				break;
+			case Press_Release:
+				break;
+			default:
+				PORTB = 0x01;
+				val = 5;
+				LCD_Cursor(1);
+				LCD_WriteData(val + '0');
+				break;			
+		}
 	}
 }
 
