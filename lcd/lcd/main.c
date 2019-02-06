@@ -12,6 +12,7 @@ int main(void)
 {
 	DDRC = 0xFF; PORTC = 0x00; // LCD data lines
 	DDRD = 0xFF; PORTD = 0x00; // LCD control lines
+	DDRB = 0xFF; PORTB = 0x00;
 	
 	// Initializes the LCD display
 	LCD_init();
@@ -19,8 +20,8 @@ int main(void)
 	// Starting at position 1 on the LCD screen, writes Hello World
 	const unsigned char* s = (const unsigned char*) "Hello World";
 	LCD_DisplayString(1, s);
-	
-	while(1) {continue;}
+	//PORTB = 0x02;
+	while(1) {}
 }
 
 
