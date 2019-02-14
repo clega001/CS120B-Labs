@@ -2,7 +2,7 @@
  * Christian Legaspino & clega001@ucr.edu
  * Carissa Lo & clo020@ucr.edu
  * Lab Section: 23
- * Assignment: Lab 10 Exercise 1
+ * Assignment: Lab 10 Exercise 2
  *
  * I acknowledge all content contained herein, excluding template or example
  * code, is my own original work.
@@ -142,7 +142,7 @@ int main(void)
 		   TickFct_BL();
 		   BL_elapsedTime = 0;
 	   }
-	   if(TL_elapsedTime >= 1000){
+	   if(TL_elapsedTime >= 300){
 		   TickFct_TL();
 		   TL_elapsedTime = 0;
 	   }
