@@ -2,7 +2,7 @@
  * Christian Legaspino & clega001@ucr.edu
  * Carissa Lo & clo020@ucr.edu
  * Lab Section: 23
- * Assignment: Lab 10 Exercise 3
+ * Assignment: Lab 10 Exercise 4
  *
  * I acknowledge all content contained herein, excluding template or example
  * code, is my own original work.
@@ -71,12 +71,17 @@ void PWM_off() {
 enum BL_States{BL_Start, BL_Blink} BL_state;
 enum TL_States{TL_Start, TL_Blink, TL_Blink_Again} TL_state;
 enum Butt_States{Butt_Start, Butt_Press} Butt_state;
+enum Freq_States{Freq_Start, Up, Up_Press, Down, Down_Press} Freq_state;
 enum Combine_States{Com_Start, Com_Action} Com_states;
 	
 unsigned char blinkingLED = 0x10;
 unsigned char threeLED = 0x04;
 unsigned char hold = 0x00;
 unsigned char b = 0x00;
+unsigned char i = 0x00;
+unsigned char b_up = 0x00;
+unsigned char b_down = 0x00;
+double arr[8] = {261.63, 293.66, 329.63, 349.63, 392.00, 440.00, 493.88, 523.25};
 
 void TickFct_BL(){
 	
@@ -135,9 +140,82 @@ void TickFct_TL(){
 			break;
 	}
 }
+void TickFct_Freq(){
+	b_up = PINA & 0x01;
+	b_down = PINA & 0x02;
+	
+	switch(Freq_state){
+		case Freq_Start:
+			if(!b_up){
+				Freq_state = Up;
+				break;
+			}
+			else if(!b_down){
+				Freq_state = Down;
+				break;
+			}
+			else{
+				Freq_state = Freq_Start;
+				break;
+			}
+		case Up:
+			if(!b_up){
+				Freq_state = Up;
+				break;
+			}
+			else{
+				Freq_state = Up_Press;
+				break;
+			}
+		case Up_Press:
+			Freq_state = Freq_Start;
+			break;
+		case Down:
+			if(!b_down){
+				Freq_state = Down;
+				break;
+			}
+			else{
+				Freq_state = Down_Press;
+				break;
+			}
+		case Down_Press:
+			Freq_state = Freq_Start;
+			break;
+		default:
+			Freq_state = Freq_Start;
+			break;
+	}
+	switch(Freq_state){
+		case Freq_Start:
+			break;
+		case Up:
+			break;
+		case Up_Press:
+			if(i < 7){
+				i++;
+				break;
+			}
+			else{
+				break;
+			}
+		case Down:
+			break;
+		case Down_Press:
+			if(i > 0){
+				i--;
+				break;
+			}
+			else{
+				break;
+			}
+		default:
+			break;
+	}
+}
 void TickFct_Butt(){
 	
-	b = PINA & 0x01;
+	b = PINA & 0x04;
 	
 	switch(Butt_state){
 		case Butt_Start:
@@ -167,7 +245,7 @@ void TickFct_Butt(){
 			set_PWM(0);
 			break;
 		case Butt_Press:
-			set_PWM(261.62);
+			set_PWM(arr[i]);
 			break;
 		default:
 			set_PWM(0);
@@ -205,6 +283,7 @@ int main(void)
    unsigned long BL_elapsedTime = 0;
    unsigned long TL_elapsedTime = 0;
    unsigned long Butt_elapsedTime = 0;
+   unsigned long Freq_elapsedTime = 0;
    const unsigned long timerPeriod = 100;
    
    TimerSet(timerPeriod);
@@ -216,6 +295,7 @@ int main(void)
    BL_state = BL_Start;
    TL_state = TL_Start;
    Butt_state = Butt_Start;
+   Freq_state = Freq_Start;
    Com_states = Com_Start;
 
    while(1){
@@ -226,6 +306,10 @@ int main(void)
 	   if(TL_elapsedTime >= 300){
 		   TickFct_TL();
 		   TL_elapsedTime = 0;
+	   }
+	   if(Freq_elapsedTime >= 2){
+		   TickFct_Freq();
+		   Freq_elapsedTime = 0;
 	   }
  	   if(Butt_elapsedTime >= 2){
  		   TickFct_Butt();
@@ -238,6 +322,7 @@ int main(void)
 	   BL_elapsedTime += timerPeriod;
 	   TL_elapsedTime += timerPeriod;
 	   Butt_elapsedTime += 1;
+	   Freq_elapsedTime += 1;
    }
 }
 
