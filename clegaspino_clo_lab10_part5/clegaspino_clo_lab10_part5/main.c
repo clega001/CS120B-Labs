@@ -12,9 +12,6 @@
 #include <avr/io.h>
 #include <avr/interrupt.h>
 
-#define button_A0 (~PINA & 0x01)
-#define button_A1 (~PINA & 0x02)
-
 
 volatile unsigned char TimerFlag = 0;
 unsigned long _avr_timer_M = 1;
@@ -48,145 +45,131 @@ void TimerSet(unsigned long M) {
 	_avr_timer_M = M;
 	_avr_timer_cntcurr = _avr_timer_M;
 }
-enum C_States { C_SMStart, C_Wait, C_Inc, C_Dec, C_Reset} C_State;
+enum Cnt_States {Start, Wait, Inc, Dec, Reset} Cnt_state;
 enum SB_States { SB_SMStart, SB_Set} SB_State;
-unsigned char tempB = 0x00;
-unsigned long current = 0x00;
-unsigned long set_period = 0x00;
+unsigned char val = 0x00;
+unsigned long cnt_timer = 0x00;
+unsigned long change_period = 0x00;
+unsigned char b0 = 0x00;
+unsigned char b1 = 0x00;
 
+void Hold3Sec()
+{
+	if(change_period == 1000 && cnt_timer >= 3000)
+	change_period = 400;
+	else if(change_period == 1 && cnt_timer >= 1000)
+	change_period = 1000;
+}
+void TickFct_Counter(){
+	
+	b0 = PINA & 0x01;
+	b1 = PINA & 0x02;
+	switch(Cnt_state){
+		case Start:
+			Cnt_state = Wait;
+			break;
+		case Wait:
+			if(!b0){
+				Cnt_state = Inc;
+			}
+			else if(!b1){
+				Cnt_state = Dec;
+			}
+			else if(!b0 && !b1){
+				Cnt_state = Reset;
+			}
+			else{
+				Cnt_state = Wait;
+			}
+			break;
+		case Inc:
+			if(!b0){
+				Cnt_state = Inc;
+				Hold3Sec();
+			}
+			else if(!b1){
+				Cnt_state = Reset;
+			}
+			else{
+				Cnt_state = Wait;
+				if(val < 9){
+					val++;
+				}
+			}
+			break;
+		case Dec:
+			if(!b1){
+				Cnt_state = Dec;
+				Hold3Sec();
+				break;
+			}
+			else if(!b0 && !b1){
+				Cnt_state = Reset;
+				break;
+			}
+			else{
+				Cnt_state = Wait;
+				if(val > 0){
+					val--;
+				}
+				break;
+			}
+		case Reset:
+			if(b0 || b1){
+				Cnt_state = Wait;
+			}
+			else{
+				Cnt_state = Reset;
+			}
+			break;
+		default:
+			Cnt_state = Wait;
+			break;
+	}
+	switch(Cnt_state){
+		case Start:
+			break;
+		case Wait:
+			cnt_timer = 0;
+			change_period = 1;
+			break;
+		case Inc:
+			val++;
+			break;
+		case Dec:
+			val--;
+			break;
+		case Reset:
+			val = 0;
+			break;
+		default:
+			break;
+	}
+}
 
-void Held_Button()
-{
-	if(set_period == 1000 && current >= 3000)
-	set_period = 400;
-	else if(set_period == 1 && current >= 1000)
-	set_period = 1000;
-	if (set_period == 400 || set_period == 1000)
-	{
-		if(C_State == C_Inc && tempB < 9)
-		++tempB;
-		else if(C_State == C_Dec && tempB > 0)
-		--tempB;
-	}
-}
-void TickFct_Counter()
-{
-	switch(C_State)
-	{
-		case C_SMStart:
-		C_State = C_Wait;
-		break;
-		case C_Wait:
-		if(button_A0 && !button_A1)
-		C_State = C_Inc;
-		else if(!button_A0 && button_A1)
-		C_State = C_Dec;
-		else if(button_A0 && button_A1)
-		C_State = C_Reset;
-		else
-		C_State = C_Wait;
-		break;
-		case C_Inc:
-		if(button_A0 && !button_A1)
-		{
-			C_State = C_Inc;
-			Held_Button();
-		}
-		else if(button_A0 && button_A1)
-		C_State = C_Reset;
-		else
-		{
-			C_State = C_Wait;
-			if(tempB < 9)
-			++tempB;
-		}
-		break;
-		case C_Dec:
-		if(!button_A0 && button_A1)
-		{
-			C_State = C_Dec;
-			Held_Button();
-		}
-		else if(button_A0 && button_A1)
-		C_State = C_Reset;
-		else
-		{
-			C_State = C_Wait;
-			if(tempB > 0)
-			--tempB;
-		}
-		break;
-		case C_Reset:
-		if(!button_A0 && !button_A1)
-		C_State = C_Wait;
-		else
-		C_State = C_Reset;
-		break;
-		default:
-		break;
-	}
-	switch(C_State)
-	{
-		case C_SMStart:
-		break;
-		case C_Wait:
-		current = 0;
-		set_period = 1;
-		break;
-		case C_Inc:
-		break;
-		case C_Dec:
-		break;
-		case C_Reset:
-		tempB = 0;
-		break;
-		default:
-		break;
-	}
-}
-void TickFct_SetB() {
-	switch(SB_State){
-		case SB_SMStart:
-		SB_State = SB_Set;
-		break;
-		case SB_Set:
-		SB_State = SB_Set;
-		break;
-		default:
-		break;
-	}
-	switch(SB_State){
-		case SB_SMStart:
-		PORTB = 0x00;
-		break;
-		case SB_Set:
-		PORTB = tempB;
-		break;
-		default:
-		break;
-	}
-}
 int main(void){
 	DDRA = 0x00; PORTA = 0xFF; // Configure port A's 8 pins as inputs, initialize to 0s
 	DDRB = 0xFF; PORTB = 0x00; // Configure port B's 8 pins as outputs, initialize to 0s
-	unsigned long C_elapsedTime = 1;
+	unsigned long Cnt_elapsedTime = 1;
 
 	const unsigned long timerPeriod = 1;
 	TimerSet(timerPeriod);
 	TimerOn();
-	C_State = C_SMStart;
-	SB_State = SB_SMStart;
-	set_period = timerPeriod;
+	Cnt_state = Start;
+	
+	change_period = timerPeriod;
+	
+	
 	while (1) {
-		if (C_elapsedTime >= set_period) {
+		if (Cnt_elapsedTime >= change_period) {
 			TickFct_Counter();
-			C_elapsedTime = 0;
+			Cnt_elapsedTime = 0;
 		}
-		TickFct_SetB();
-		while (!TimerFlag){}   // Wait for timer period
-		TimerFlag = 0;         // Lower flag raised by timer
-		C_elapsedTime += timerPeriod;
-		current += timerPeriod;
+		PORTB = val;
+		while (!TimerFlag){} 
+			TimerFlag = 0;
+			Cnt_elapsedTime += timerPeriod;
+			cnt_timer += timerPeriod;
 	}
 }
 
