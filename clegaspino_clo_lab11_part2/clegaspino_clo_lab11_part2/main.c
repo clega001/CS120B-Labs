@@ -13,6 +13,7 @@
 #include <bit.h>
 #include <timer.h>
 #include <stdio.h>
+#include "io.c"
 
 //--------Find GCD function --------------------------------------------------
 unsigned long int findGCD(unsigned long int a, unsigned long int b)
@@ -42,62 +43,60 @@ typedef struct _task {
 //--------End Task scheduler data structure-----------------------------------
 
 //--------Shared Variables----------------------------------------------------
-
+unsigned char b = 0x00;
+const unsigned char* s = (const	unsigned char*)"Legend...";
 
 //--------End Shared Variables------------------------------------------------
-
+void Display(){
+	LCD_DisplayString(1, s);
+}
 //--------User defined FSMs---------------------------------------------------
-//Enumeration of states.
-enum SM1_States { SM1_wait, SM1_press, SM1_release };
-
-// Monitors button connected to PA0. 
-// When button is pressed, shared variable "pause" is toggled.
-int SMTick1(int state) {
-
-    // Local Variables
-    unsigned char press = ~PINA & 0x01;
-
-    //State machine transitions
-    switch (state) {
-    case SM1_wait:     if (press == 0x01) {    // Wait for button press
-state = SM1_press;
+enum States{Wait, Press, Release} state;
+	
+int TickFct_LCD(int state){
+	
+	b = PINA & 0x01;
+	
+	switch(state){
+		case Wait:
+			if(!b){
+				state = Press;
+				break;
+			}
+			else{
+				state = Wait;
+				break;
+			}
+		case Press:
+			if(!b){
+				state = Press;
+				break;
+			}
+			else{
+				state = Release;
+				break;
+			}
+		case Release:
+			state = Wait;
+			break;
+		default:
+			state = Wait;
+			break;
+	}
+	switch(state){
+		case Wait:
+			PORTB = 0x00;
+			break;
+		case Press:
+			PORTB = 0x01;
+			break;
+		case  Release:
+			break;
+		default:
+			break;
+	}
+	return state;
 }
-break;
-
-    case SM1_press:    state = SM1_release;
-break;
-
-    case SM1_release:    if (press == 0x00) {    // Wait for button release
-state = SM1_wait;
-}
-break;
-
-    default:        state = SM1_wait; // default: Initial state
-                break;
-    }
-
-    //State machine actions
-    switch(state) {
-    case SM1_wait:    break;
-
-    case SM1_press:    pause = (pause == 0) ? 1 : 0; // toggle pause
-break;
-
-    case SM1_release:    break;
-
-    default:        break;
-    }
-
-    return state;
-}
-
-//Enumeration of states.
-
-//Enumeration of states.
-
-//Enumeration of states.
-
-
 // --------END User defined FSMs-----------------------------------------------
 
 // Implement scheduler code from PES.
@@ -107,7 +106,7 @@ int main()
 // Buttons PORTA[0-7], set AVR PORTA to pull down logic
 DDRA = 0x00; PORTA = 0xFF;
 DDRB = 0xFF; PORTB = 0x00;
-// . . . etc
+DDRC = 0xFF; PORTC = 0x00;
 
 // Period for the tasks
 unsigned long int SMTick1_calc = 50;
@@ -115,49 +114,28 @@ unsigned long int SMTick1_calc = 50;
 
 //Calculating GCD
 unsigned long int tmpGCD = 1;
-tmpGCD = findGCD(SMTick1_calc, SMTick2_calc);
-tmpGCD = findGCD(tmpGCD, SMTick3_calc);
-tmpGCD = findGCD(tmpGCD, SMTick4_calc);
+tmpGCD = findGCD(tmpGCD, SMTick1_calc);
 
 //Greatest common divisor for all tasks or smallest time unit for tasks.
 unsigned long int GCD = tmpGCD;
 
 //Recalculate GCD periods for scheduler
 unsigned long int SMTick1_period = SMTick1_calc/GCD;
-unsigned long int SMTick2_period = SMTick2_calc/GCD;
-unsigned long int SMTick3_period = SMTick3_calc/GCD;
-unsigned long int SMTick4_period = SMTick4_calc/GCD;
 
 //Declare an array of tasks 
-static task task1, task2, task3, task4;
-task *tasks[] = { &task1, &task2, &task3, &task4 };
+static task task1;
+task *tasks[] = {&task1};
 const unsigned short numTasks = sizeof(tasks)/sizeof(task*);
 
 // Task 1
 task1.state = -1;//Task initial state.
 task1.period = SMTick1_period;//Task Period.
 task1.elapsedTime = SMTick1_period;//Task current elapsed time.
-task1.TickFct = &SMTick1;//Function pointer for the tick.
+task1.TickFct = &TickFct_LCD;//Function pointer for the tick.
 
-// Task 2
-task2.state = -1;//Task initial state.
-task2.period = SMTick2_period;//Task Period.
-task2.elapsedTime = SMTick2_period;//Task current elapsed time.
-task2.TickFct = &SMTick2;//Function pointer for the tick.
-
-// Task 3
-task3.state = -1;//Task initial state.
-task3.period = SMTick3_period;//Task Period.
-task3.elapsedTime = SMTick3_period; // Task current elasped time.
-task3.TickFct = &SMTick3; // Function pointer for the tick.
-
-// Task 4
-task4.state = -1;//Task initial state.
-task4.period = SMTick4_period;//Task Period.
-task4.elapsedTime = SMTick4_period; // Task current elasped time.
-task4.TickFct = &SMTick4; // Function pointer for the tick.
 
 // Set the timer and turn it on
+LCD_init();
 TimerSet(GCD);
 TimerOn();
 
@@ -174,8 +152,10 @@ while(1) {
         }
         tasks[i]->elapsedTime += 1;
     }
+
     while(!TimerFlag);
     TimerFlag = 0;
+	continue;
 }
 
 // Error: Program should not exit!

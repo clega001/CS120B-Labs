@@ -47,79 +47,79 @@ void Tick(){
 	b = (~PINA) & 0x03;
 	switch(state){
 		case Start:
-		LCD_Cursor(1);
-		LCD_WriteData( val + '0' );
-		state = Init;
-		break;
+			LCD_Cursor(1);
+			LCD_WriteData( val + '0' );
+			state = Init;
+			break;
 		case Init:
-		if(b == 0x02){
-			state = Dec;
-		}
-		else if(b == 0x01){
-			state = Inc;
-		}
-		break;
+			if(b == 0x02){
+				state = Dec;
+			}
+			else if(b == 0x01){
+				state = Inc;
+			}
+			break;
 		case Inc:
-		if(val < 9){
-			val++;
-		}
-		LCD_Cursor(1);
-		LCD_WriteData(val + '0');
-		state = Inc_Wait;
-		break;
-		case Inc_Wait:
-		if(b == 0x03){
-			cnt = 0;
-			state = Reset;
-		}
-		else if(b == 0){
-			cnt = 0;
-			state = Init;
-		}
-		else if((b == 0x01) & (cnt == 10)){
-			state = Inc;
-			cnt = 0;
-		}
-		else{
+			if(val < 9){
+				val++;
+			}
+			LCD_Cursor(1);
+			LCD_WriteData(val + '0');
 			state = Inc_Wait;
-			cnt++;
-		}
-		break;
+			break;
+		case Inc_Wait:
+			if(b == 0x03){
+				cnt = 0;
+				state = Reset;
+			}
+			else if(b == 0){
+				cnt = 0;
+				state = Init;
+			}
+			else if((b == 0x01) & (cnt == 10)){
+				state = Inc;
+				cnt = 0;
+			}
+			else{
+				state = Inc_Wait;
+				cnt++;
+			}
+			break;
 		case Dec:
-		if(val > 0){
-			val--;
-		}
-		LCD_Cursor(1);
-		LCD_WriteData(val + '0');
-		state = Dec_Wait;
-		break;
-		case Dec_Wait:
-		if(b == 0x03){
-			cnt = 0;
-			state = Reset;
-		}
-		else if(b == 0){
-			cnt = 0;
-			state = Init;
-		}
-		else if((b == 0x02) & (cnt == 10)){
-			state = Dec;
-			cnt = 0;
-		}
-		else{
+			if(val > 0){
+				val--;
+			}
+			LCD_Cursor(1);
+			LCD_WriteData(val + '0');
 			state = Dec_Wait;
-			cnt++;
-		}
-		break;
+			break;
+		case Dec_Wait:
+			if(b == 0x03){
+				cnt = 0;
+				state = Reset;
+			}
+			else if(b == 0){
+				cnt = 0;
+				state = Init;
+			}
+			else if((b == 0x02) & (cnt == 10)){
+				state = Dec;
+				cnt = 0;
+			}
+			else{
+				state = Dec_Wait;
+				cnt++;
+			}
+			break;
 		case Reset:
-		val = 0;
-		LCD_Cursor(1);
-		LCD_WriteData(val + '0');
-		state = Init;
-		break;
+			val = 0;
+			LCD_Cursor(1);
+			LCD_WriteData(val + '0');
+			state = Init;
+			break;
 		default:
-		state = Start;
-		break;
+			state = Start;
+			break;
 		
 	}
 }
