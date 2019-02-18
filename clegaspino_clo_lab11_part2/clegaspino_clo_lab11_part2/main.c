@@ -90,7 +90,7 @@ int TickFct_LCD(int state){
 		case Press:
 			PORTB = 0x01;
 			break;
-		case  Release:
+		case Release:
 			break;
 		default:
 			break;
@@ -152,7 +152,7 @@ while(1) {
         }
         tasks[i]->elapsedTime += 1;
     }
-
+	LCD_ClearScreen();
     while(!TimerFlag);
     TimerFlag = 0;
 	continue;
