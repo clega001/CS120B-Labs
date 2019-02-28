@@ -1,20 +1,15 @@
 /*
- * Christian Legaspino & clega001@ucr.edu
- * Carissa Lo & clo020@ucr.edu
- * Lab Section: 23
- * Assignment: Lab 11 Exercise 2
+ * CustomLab_Complexity1.c
  *
- * I acknowledge all content contained herein, excluding template or example
- * code, is my own original work.
- */
+ * Created: 2/26/2019 2:08:28 PM
+ * Author : Christian Legaspino
+ */ 
 
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <bit.h>
 #include <timer.h>
-#include <stdio.h> 
-#include "io.c"
-#include <delay.h>
+#include <stdio.h>
 
 //--------Find GCD function --------------------------------------------------
 unsigned long int findGCD(unsigned long int a, unsigned long int b)
@@ -44,81 +39,93 @@ typedef struct _task {
 //--------End Task scheduler data structure-----------------------------------
 
 //--------Shared Variables----------------------------------------------------
-unsigned char b = 0x00;
-const unsigned char* s = (const	unsigned char*)"Legend...";
-const unsigned char* t = (const	unsigned char*)"wait for it";
-const unsigned char* r = (const	unsigned char*)"DARY!!!";
+unsigned short x_axis = 0x0000;
+unsigned short y_axis = 0x0000;
+
 //--------End Shared Variables------------------------------------------------
-void Display(){
-	LCD_DisplayString(1, s);
-	_delay_ms(50);
-	LCD_DisplayString(1, t);
-	_delay_ms(100);
-	LCD_DisplayString(1, r);
+void ADC_init() {
+	//ADCSRA |= (1 << ADEN) | (1 << ADSC) | (1 << ADATE);
+	// AREF = AVcc
+	ADMUX = (1<<REFS0);
+	
+	// ADC Enable and prescaler of 128
+	// 16000000/128 = 125000
+	ADCSRA = (1<<ADEN)|(1<<ADPS2)|(1<<ADPS1)|(1<<ADPS0);
 }
+uint16_t ADC_read(uint8_t ch)
+{
+	// select the corresponding channel 0~7
+	// ANDing with ’7? will always keep the value
+	// of ‘ch’ between 0 and 7
+	ch &= 0b00000111;  // AND operation with 7
+	ADMUX = (ADMUX & 0xF8)|ch; // clears the bottom 3 bits before ORing
+	
+	// start single conversion
+	// write ’1? to ADSC
+	ADCSRA |= (1<<ADSC);
+	
+	// wait for conversion to complete
+	// ADSC becomes ’0? again
+	// till then, run loop continuously
+	while(ADCSRA & (1<<ADSC));
+	
+	return (ADC);
+}
+
 //--------User defined FSMs---------------------------------------------------
-enum States{Wait, Press, Release} state;
+enum SM1_States{Wait, Act} state1;
+
+int SM1Tick1(int state1){
+	x_axis = ADC_read(0);
+	y_axis = ADC_read(1);
 	
-int TickFct_LCD(int state){
-	
-	b = PINC & 0x01;
-	
-	switch(state){
+	switch(state1){
 		case Wait:
-			if(!b){
-				state = Press;
-				break;
-			}
-			else{
-				state = Wait;
-				break;
-			}
-		case Press:
-			if(!b){
-				state = Press;
-				break;
-			}
-			else{
-				state = Release;
-				break;
-			}
-		case Release:
-			state = Wait;
+			state1 = Act;
+			break;
+		case Act:
+			state1 = Act;
 			break;
 		default:
-			state = Wait;
+			state1 = Wait;
 			break;
 	}
-	switch(state){
+	switch(state1){
 		case Wait:
-			PORTB = 0x00;
 			break;
-		case Press:
-			PORTB = 0x01; //Debugging Purposes
-			Display();
-			break;
-		case Release:
+		case Act:
+			if(x_axis >= 900){
+				PORTB = 0x02;
+			}
+			else if(x_axis <= 100){
+				PORTB = 0x04;
+			}
+			else if(y_axis >= 900){
+				PORTB = 0x01;
+			}
+			else if(y_axis <= 100){
+				PORTB = 0x08;
+			}
+			else{
+				PORTB = 0x00;
+			}
 			break;
 		default:
 			break;
 	}
-	return state;
+	return state1;
 }
 // --------END User defined FSMs-----------------------------------------------
 
 // Implement scheduler code from PES.
 int main()
 {
-// Set Data Direction Registers
-// Buttons PORTA[0-7], set AVR PORTA to pull down logic
-DDRA = 0xFF; PORTA = 0x00;
-DDRD = 0xFF; PORTD = 0x00;
-DDRC = 0x00; PORTC = 0xFF;
+DDRA = 0x00; PORTA = 0xFF;
 DDRB = 0xFF; PORTB = 0x00;
+
 
 // Period for the tasks
 unsigned long int SMTick1_calc = 50;
-
 
 //Calculating GCD
 unsigned long int tmpGCD = 1;
@@ -130,6 +137,7 @@ unsigned long int GCD = tmpGCD;
 //Recalculate GCD periods for scheduler
 unsigned long int SMTick1_period = SMTick1_calc/GCD;
 
+
 //Declare an array of tasks 
 static task task1;
 task *tasks[] = {&task1};
@@ -139,18 +147,12 @@ const unsigned short numTasks = sizeof(tasks)/sizeof(task*);
 task1.state = -1;//Task initial state.
 task1.period = SMTick1_period;//Task Period.
 task1.elapsedTime = SMTick1_period;//Task current elapsed time.
-task1.TickFct = &TickFct_LCD;//Function pointer for the tick.
-
+task1.TickFct = &SM1Tick1;//Function pointer for the tick.
 
 // Set the timer and turn it on
-LCD_init();
 TimerSet(GCD);
 TimerOn();
-
-
-// LCD_DisplayString(1, s);
-// LCD_Cursor(1);
-// LCD_WriteData(1 + '0');
+ADC_init();
 unsigned short i; // Scheduler for-loop iterator
 while(1) {
     // Scheduler code
@@ -164,9 +166,8 @@ while(1) {
         }
         tasks[i]->elapsedTime += 1;
     }
-    while(!TimerFlag);
-    TimerFlag = 0;
-	continue;
+	while(!TimerFlag);
+	TimerFlag = 0;
 }
 
 // Error: Program should not exit!
