@@ -1,9 +1,12 @@
 /*
- * CustomLab_Complexity1.c
+ * CustomLab_Complexity2.c
  *
- * Created: 2/26/2019 2:08:28 PM
+ * Created: 2/28/2019 4:18:48 PM
  * Author : Christian Legaspino
  */ 
+
+#include <avr/io.h>
+
 
 #include <avr/io.h>
 #include <avr/interrupt.h>
@@ -39,46 +42,17 @@ typedef struct _task {
 //--------End Task scheduler data structure-----------------------------------
 
 //--------Shared Variables----------------------------------------------------
-unsigned short x_axis = 0x0000;
-unsigned short y_axis = 0x0000;
-
+unsigned char pass = 0x00;
+unsigned char b1 = 0x00;
+unsigned char b2 = 0x00;
 //--------End Shared Variables------------------------------------------------
-void ADC_init() {
-	//ADCSRA |= (1 << ADEN) | (1 << ADSC) | (1 << ADATE);
-	// AREF = AVcc
-	ADMUX = (1<<REFS0);
-	
-	// ADC Enable and prescaler of 128
-	// 16000000/128 = 125000
-	ADCSRA = (1<<ADEN)|(1<<ADPS2)|(1<<ADPS1)|(1<<ADPS0);
-}
-uint16_t ADC_read(uint8_t ch)
-{
-	// select the corresponding channel 0~7
-	// ANDing with ’7? will always keep the value
-	// of ‘ch’ between 0 and 7
-	ch &= 0b00000111;  // AND operation with 7
-	ADMUX = (ADMUX & 0xF8)|ch; // clears the bottom 3 bits before ORing
-	
-	// start single conversion
-	// write ’1? to ADSC
-	ADCSRA |= (1<<ADSC);
-	
-	// wait for conversion to complete
-	// ADSC becomes ’0? again
-	// till then, run loop continuously
-	while(ADCSRA & (1<<ADSC));
-	
-	return (ADC);
-}
 
 //--------User defined FSMs---------------------------------------------------
 enum SM1_States{Wait, Act} state1;
 
 int SM1Tick1(int state1){
-	x_axis = ADC_read(0);
-	y_axis = ADC_read(1);
-	
+b1 = PINA & 0x01;
+b2 = PINA & 0x02;
 	switch(state1){
 		case Wait:
 			state1 = Act;
@@ -92,23 +66,12 @@ int SM1Tick1(int state1){
 	}
 	switch(state1){
 		case Wait:
+			PORTC = 0x00;
+			PORTB = 0xFF;
 			break;
 		case Act:
-			if(x_axis >= 950){
-				PORTB = 0x02;
-			}
-			else if(x_axis <= 50){
-				PORTB = 0x04;
-			}
-			else if(y_axis >= 950){
-				PORTB = 0x01;
-			}
-			else if(y_axis <= 50){
-				PORTB = 0x08;
-			}
-			else{
-				PORTB = 0x00;
-			}
+			PORTC = 0x02;
+			PORTB = 0x10;
 			break;
 		default:
 			break;
@@ -122,6 +85,7 @@ int main()
 {
 DDRA = 0x00; PORTA = 0xFF;
 DDRB = 0xFF; PORTB = 0x00;
+DDRC = 0xFF; PORTC = 0x00;
 
 
 // Period for the tasks
@@ -152,7 +116,6 @@ task1.TickFct = &SM1Tick1;//Function pointer for the tick.
 // Set the timer and turn it on
 TimerSet(GCD);
 TimerOn();
-ADC_init();
 unsigned short i; // Scheduler for-loop iterator
 while(1) {
     // Scheduler code
@@ -173,5 +136,4 @@ while(1) {
 // Error: Program should not exit!
 return 0;
 }
-
 
