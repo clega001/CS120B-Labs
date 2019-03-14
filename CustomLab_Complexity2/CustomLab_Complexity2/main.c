@@ -129,8 +129,11 @@ unsigned char finMessageY[] = {0xFD, 0xFB, 0xF7, 0xEF};
 	
 unsigned char loseMessageX[] = {0x24, 0x18, 0x24};
 unsigned char loseMessageY[] = {0xFE, 0xFC, 0xF7};
-
-
+	
+bool south = false;
+bool north = true;
+bool west = false;
+bool east = false;
 //--------End Shared Variables------------------------------------------------
 
 // void noteDisplay(){
@@ -161,23 +164,9 @@ void match(int direction){
 	}
 	else{
 		if(test != 0){test -= 1;}
-// 		set_PWM(261.63);
-// 		_delay_ms(500);
+		set_PWM(261.63);
 	}
 }
-
-unsigned char temp = 0x00;
-void upDisplay(){
-	PORTC = 0x0C; PORTD = temp;
-}
-void upDisplayShift(){
-	while(PORTD != 0x7F){
-		tmp = tmp << 1;
-		tmp = tmp | 0x01;
-		PORTD = tmp;
-	}
-}
-
 //--------User defined FSMs---------------------------------------------------
 enum SM1_States{Wait1, Act1, Up1, UpPress1, Down1, DownPress1, Right1, RightPress1, Left1, LeftPress1};
 
@@ -267,25 +256,21 @@ int SM1Tick(int state){
 			set_PWM(0);
 			break;
 		case Up1:
-			PORTB = 0x02;
 			break;
 		case UpPress1:
 			match(direction);
 			break;
 		case Down1:
-			PORTB = 0x04;
 			break;
 		case DownPress1:
 			match(direction);
 			break;
 		case Right1:
-			PORTB = 0x01;
 			break;
 		case RightPress1:
 			match(direction);
 			break;
 		case Left1:
-			PORTB = 0x10;
 			break;
 		case LeftPress1:
 			match(direction);
@@ -297,14 +282,25 @@ int SM1Tick(int state){
 }
 
 enum SM2_States{Wait2, ColumnUp, ColumnUpShift};
-int upTmp = 0;
+unsigned char upTmp = 0;
+
 int SM2Tick(int state){
 	switch(state){
 		case Wait2:
-			state = ColumnUp;
+			if(north){
+				state = ColumnUp;
+			}
+			else{
+				state = Wait2;
+			}
 			break;
 		case ColumnUp:
-			state = ColumnUpShift;
+			if(north){
+				state = ColumnUpShift;
+			}
+			else{
+				state = Wait2;
+			}
 			break;
 		case ColumnUpShift:
 			if(upTmp != 0xFE){
@@ -330,36 +326,142 @@ int SM2Tick(int state){
 				upTmp = upTmp << 1;
 				upTmp = upTmp | 0x01;
 			}
+			else if(PORTD == 0x7F){
+				north = false; west = true; south = false;
+			}
 			break;
 		default:
 			break;
 	}
 	return state;
 }
-// enum SM3_States{Wait3, Display3};
-// 	
-// int SM3Tick(int state){
-// 	switch(state){
-// 		case Wait3:
-// 			state = Display3;
-// 			break;
-// 		case Display3:
-// 			state = Display3;
-// 			break;
-// 		default:
-// 			state = Wait3;
-// 			break;
-// 	}
-// 	switch(state){
-// 		case Wait3:
-// 			break;
-// 		case Display3:
-// 			break;
-// 		default:
-// 			break;
-// 	}
-// 	return state;
-// }
+enum SM3_States{Wait3, ColumnDown, ColumnDownShift};
+unsigned char downTmp = 0;
+	
+int SM3Tick(int state){
+	switch(state){
+		case Wait3:
+			if(south){
+				state = ColumnDown;
+			}
+			else{
+				state = Wait3;
+			}
+			break;
+		case ColumnDown:
+			if(south){
+				state = ColumnDownShift;
+			}
+			else{
+				state = Wait3;
+			}
+			break;
+		case ColumnDownShift:
+			if(downTmp != 0xFE){
+				state = ColumnDown;
+			}
+			else{
+				state = Wait3;
+			}
+			break;
+		default:
+			state = Wait3;
+			break;
+	}
+	switch(state){
+		case Wait3:
+			downTmp = 0xFE;
+			break;
+		case ColumnDown:
+			PORTC = 0x30; PORTD = downTmp;
+			break;
+		case ColumnDownShift:
+			if(PORTD != 0x7F){
+				downTmp = downTmp << 1;
+				downTmp = downTmp | 0x01;
+			}
+			else if(PORTD == 0x7F){
+				south = false; north = true; west = false;
+			}
+		default:
+			break;
+	}
+	return state;
+}
+
+enum SM4_States{Wait4, ColumnLeft, ColumnLeftShift};
+unsigned char westTmp = 0;
+
+int SM4Tick(int state){
+	switch(state){
+		case Wait4:
+			if(west){
+				state = ColumnLeft;
+			}
+			else{
+				state = Wait4;
+			}
+			break;
+		case ColumnLeft:
+			if(west){
+				state = ColumnLeftShift;
+			}
+			else{
+				state = Wait4;
+			}
+			break;
+		case ColumnLeftShift:
+			if(westTmp != 0xFE){
+				state = ColumnLeft;
+			}
+			else{
+				state = Wait4;
+			}
+			break;
+		default:
+			state = Wait4;
+			break;
+	}
+	switch(state){
+		case Wait4:
+			westTmp = 0xFE;
+			break;
+		case ColumnLeft:
+			PORTC = 0xC0; PORTD = westTmp;
+			break;
+		case ColumnLeftShift:
+			if(PORTD != 0x7F){
+				westTmp = westTmp << 1;
+				westTmp = westTmp | 0x01;
+			}
+			else if(PORTD == 0x7F){
+				west = false; south = true; north = false;
+			}
+		default:
+			break;
+	}
+	return state;
+}
+
+enum SM5_States{Wait5, ColumnRight, ColumnRight Shift};
+unsigned char rightTmp = 0x00;
+
+int SM5_States(int state){
+	switch(state){
+		case Wait5:
+			if(east){
+				state = ColumnRight;
+			}
+			else{
+				state = Wait5;
+			}
+			break;
+		case ColumnRight:
+			if(east){
+				state = ColumnRight
+			}
+	}
+}
 // --------END User defined FSMs-----------------------------------------------
 
 // Implement scheduler code from PES.
@@ -372,14 +474,16 @@ DDRD = 0xFF; PORTD = 0x00;
 
 
 // Period for the tasks
-unsigned long int SMTick1_calc = 100;
+unsigned long int SMTick1_calc = 1;
 unsigned long int SMTick2_calc = 100;
-//unsigned long int SMTIck3_calc = 1;
+unsigned long int SMTIck3_calc = 100;
+unsigned long int SMTIck4_calc = 100;
 
 //Calculating GCD
 unsigned long int tmpGCD = 1;
 tmpGCD = findGCD(SMTick1_calc, SMTick2_calc);
-//tmpGCD = findGCD(tmpGCD, SMTIck3_calc);
+tmpGCD = findGCD(tmpGCD, SMTIck3_calc);
+tmpGCD = findGCD(tmpGCD, SMTIck4_calc);
 
 //Greatest common divisor for all tasks or smallest time unit for tasks.
 unsigned long int GCD = tmpGCD;
@@ -387,12 +491,13 @@ unsigned long int GCD = tmpGCD;
 //Recalculate GCD periods for scheduler
 unsigned long int SMTick1_period = SMTick1_calc/GCD;
 unsigned long int SMTIck2_period = SMTick2_calc/GCD;
-//unsigned long int SMTick3_period = SMTIck3_calc/GCD;
+unsigned long int SMTick3_period = SMTIck3_calc/GCD;
+unsigned long int SMTick4_period = SMTIck4_calc/GCD;
 
 
 //Declare an array of tasks 
-static task task1, task2 /*,task3*/;
-task *tasks[] = {&task1, &task2 /*&task3*/};
+static task task1, task2, task3, task4;
+task *tasks[] = {&task1, &task2, &task3, &task4};
 const unsigned short numTasks = sizeof(tasks)/sizeof(task*);
 
 // Task 1
@@ -408,10 +513,16 @@ task2.elapsedTime = SMTIck2_period;
 task2.TickFct = &SM2Tick;
 
 //Task 3
-// task3.state = -1;
-// task3.period = SMTick3_period;
-// task3.elapsedTime = SMTick3_period;
-// task3.TickFct = &SM3Tick;
+task3.state = -1;
+task3.period = SMTick3_period;
+task3.elapsedTime = SMTick3_period;
+task3.TickFct = &SM3Tick;
+
+//Task 4
+task4.state = -1;
+task4.period = SMTick4_period;
+task4.elapsedTime = SMTick4_period;
+task4.TickFct = &SM4Tick;
 
 
 
