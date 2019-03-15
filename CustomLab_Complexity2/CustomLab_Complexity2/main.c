@@ -12,6 +12,8 @@
 #include <stdio.h>
 #include <util/delay.h>
 #include <stdbool.h>
+#include <alloca.h>
+#include <stdlib.h>
 
 //--------Find GCD function --------------------------------------------------
 unsigned long int findGCD(unsigned long int a, unsigned long int b)
@@ -105,71 +107,95 @@ void PWM_off() {
 	TCCR0B = 0x00;
 }
 //////////////////////////////////////////////////////////////////////////////////
-//--------Shared Variables----------------------------------------------------
+//--------Shared/Global Variables----------------------------------------------------
+//Button
 unsigned char b = 0x00;
 
+//Joystick
 unsigned short x_axis = 0x0000;
 unsigned short y_axis = 0x0000;
-
 unsigned char direction = 0x00;
-unsigned char tmp = 0x00;
-
-//w/o buzzer
-//unsigned short led7Seg[] = {0xC0, 0xF9, 0xA4, 0xB0, 0x99, 0x92, 0x82, 0xF8, 0x80, 0x98};
-//w/ buzzer
+//Seven Segment LED
 unsigned char led7Seg[] = {0x88, 0xF9, 0x4C, 0x68, 0x39, 0x2A, 0x0A, 0xF8, 0x08, 0x38};
-unsigned char test = 5;
+unsigned char test = 0;
 
 //Notes fall column wise
 unsigned char arrX[] = {0xC0, 0x0C, 0x30, 0x03, 0x30, 0x03, 0x0C, 0x03, 0xC0, 0xC0, 0x0C, 0x30};
 unsigned char arrY[] = {0xFE, 0xFE, 0xFE, 0xFE, 0xFE, 0xFE, 0xFE, 0xFE, 0xFE, 0xFE, 0xFE, 0xFE};
-	
-unsigned char finMessageX[] = {0xD0, 0x80, 0xD7, 0x95};
-unsigned char finMessageY[] = {0xFD, 0xFB, 0xF7, 0xEF};
-	
-unsigned char loseMessageX[] = {0x24, 0x18, 0x24};
-unsigned char loseMessageY[] = {0xFE, 0xFC, 0xF7};
-	
-bool south = false;
-bool north = true;
-bool west = false;
-bool east = false;
-//--------End Shared Variables------------------------------------------------
 
-// void noteDisplay(){
-// 	for(int j = 0; j < sizeof(arrY)/sizeof(unsigned short); j++){
-// 		PORTC = arrX[j]; PORTD = arrY[j];
-// 		_delay_ms(1000);
-// 		tmp = arrY[j];
-// 		while(tmp != 0x7F){
-// 			tmp = tmp << 1;
-// 			tmp = tmp | 0x01;
-// 			PORTD = tmp;
-// 			_delay_ms(1000);
-// 		}
-// 	}
-// }
+//Display when Game Won
+unsigned char finMessageX[] = {0x24, 0x42, 0x3C};
+unsigned char finMessageY[] = {0xFC, 0xF7, 0xEF};
+	
+//Display when Game Lost
+unsigned char loseMessageX[] = {0x24, 0x42, 0x3C};
+unsigned char loseMessageY[] = {0xFC, 0xDF, 0xEF};
+	
+//Randomize Column States
+bool randNum = true;
+	
+//Boolean values, each will be used to determine different speeds
+bool south1 = false; bool south2 = false;
+bool north1 = false; bool north2 = false;
+bool west1 = false; bool west2 = false;
+bool east1 = false; bool east2 = false;
+bool target = false;
+bool startGame = false;
+bool win = false;
+//--------End Shared/Global Variables------------------------------------------------
+
 void match(int direction){
-	if(direction == 3 && PORTD == 0xBF && PORTC == 0xC0){
-		if(test != 9){test += 1;}
+	if(startGame){
+		if(direction == 3 && PORTD == 0xBF && PORTC == 0xC0){
+			if(test != 9){test += 1; target = true;}
+		}
+		else if(direction == 2 && PORTD == 0xBF && PORTC == 0x03){
+			if(test != 9){test += 1; target = true;}
+		}
+		else if(direction == 1 && PORTD == 0xBF && PORTC == 0x0C){
+			if(test != 9){test += 1; target = true;}
+		}
+		else if(direction == 4 && PORTD == 0xBF && PORTC == 0x30){
+			if(test != 9){test += 1; target = true;}
+		}
+		else{
+			if(test == 9){win = true;}
+			else{
+				if(test != 0){test -= 1;}
+				set_PWM(261.63);
+				_delay_ms(500);
+			}
+		}
 	}
-	else if(direction == 2 && PORTD == 0xBF && PORTC == 0x03){
-		if(test != 9){test += 1;}
+}
+void missedTarget(){
+	if(~target && PORTD == 0x7F && PORTC == 0xC0){
+		test -= 1;
+		set_PWM(261.63);
+		_delay_ms(500);
 	}
-	else if(direction == 1 && PORTD == 0xBF && PORTC == 0x0C){
-		if(test != 9){test += 1;}
+	else if(~target && PORTD == 0x7F && PORTC == 0x03){
+		test -= 1;
+		set_PWM(261.63);
+		_delay_ms(500);
 	}
-	else if(direction == 4 && PORTD == 0xBF && PORTC == 0x30){
-		if(test != 9){test += 1;}
+	else if(~target && PORTD == 0x7F && PORTC == 0x0C){
+		test -= 1;
+		set_PWM(261.63);
+		_delay_ms(500);
+	}
+	else if(~target && PORTD == 0x7F && PORTC == 0x30){
+		test -= 1;
+		set_PWM(261.63);
+		_delay_ms(500);
 	}
 	else{
-		if(test != 0){test -= 1;}
-		set_PWM(261.63);
+		target = false;
 	}
 }
 //--------User defined FSMs---------------------------------------------------
+//SM1 Joystick
 enum SM1_States{Wait1, Act1, Up1, UpPress1, Down1, DownPress1, Right1, RightPress1, Left1, LeftPress1};
-
 int SM1Tick(int state){
 	x_axis = ADC_read(0);
 	y_axis = ADC_read(1);
@@ -179,27 +205,29 @@ int SM1Tick(int state){
 			state = Act1;
 			break;
 		case Act1:
-			if(x_axis <= 50){
-				state = Up1;
-				direction = 1;
+			if(startGame && !win){
+				if(x_axis <= 50){
+					state = Up1;
+					direction = 1;
+				}
+				else if(x_axis >= 950){
+					state = Down1;
+					direction = 4;
+				}
+				else if(y_axis >= 950){
+					state = Right1;
+					direction = 2;
+				}
+				else if(y_axis <= 50){
+					state = Left1;
+					direction = 3;
+				}
+				else{
+					state = Act1;
+					direction = 0;
+				}
+				break;
 			}
-			else if(x_axis >= 950){
-				state = Down1;
-				direction = 4;
-			}
-			else if(y_axis >= 950){
-				state = Right1;
-				direction = 2;
-			}
-			else if(y_axis <= 50){
-				state = Left1;
-				direction = 3;
-			}
-			else{
-				state = Act1;
-				direction = 0;
-			}
-			break;
 		case Up1:
 			if(x_axis <= 50){
 				state = Up1;
@@ -280,14 +308,15 @@ int SM1Tick(int state){
 	}
 	return state;
 }
+//SM2 Displays Up Arrow Columns
+
 
 enum SM2_States{Wait2, ColumnUp, ColumnUpShift};
 unsigned char upTmp = 0;
-
 int SM2Tick(int state){
 	switch(state){
 		case Wait2:
-			if(north){
+			if(north1){
 				state = ColumnUp;
 			}
 			else{
@@ -295,7 +324,7 @@ int SM2Tick(int state){
 			}
 			break;
 		case ColumnUp:
-			if(north){
+			if(north1){
 				state = ColumnUpShift;
 			}
 			else{
@@ -327,7 +356,8 @@ int SM2Tick(int state){
 				upTmp = upTmp | 0x01;
 			}
 			else if(PORTD == 0x7F){
-				north = false; west = true; south = false;
+				north1 = false;
+				randNum = true;
 			}
 			break;
 		default:
@@ -335,13 +365,15 @@ int SM2Tick(int state){
 	}
 	return state;
 }
+
+
+//SM3 Displays Down Arrow Columns
 enum SM3_States{Wait3, ColumnDown, ColumnDownShift};
-unsigned char downTmp = 0;
-	
+unsigned char downTmp = 0;	
 int SM3Tick(int state){
 	switch(state){
 		case Wait3:
-			if(south){
+			if(south1){
 				state = ColumnDown;
 			}
 			else{
@@ -349,7 +381,7 @@ int SM3Tick(int state){
 			}
 			break;
 		case ColumnDown:
-			if(south){
+			if(south1){
 				state = ColumnDownShift;
 			}
 			else{
@@ -381,7 +413,8 @@ int SM3Tick(int state){
 				downTmp = downTmp | 0x01;
 			}
 			else if(PORTD == 0x7F){
-				south = false; north = true; west = false;
+				south1 = false; 
+				randNum = true;
 			}
 		default:
 			break;
@@ -389,13 +422,14 @@ int SM3Tick(int state){
 	return state;
 }
 
-enum SM4_States{Wait4, ColumnLeft, ColumnLeftShift};
-unsigned char westTmp = 0;
 
+//SM4 Displays Left Arrow Columns
+enum SM4_States{Wait4, ColumnLeft, ColumnLeftShift};
+unsigned char leftTmp = 0;
 int SM4Tick(int state){
 	switch(state){
 		case Wait4:
-			if(west){
+			if(west1){
 				state = ColumnLeft;
 			}
 			else{
@@ -403,7 +437,7 @@ int SM4Tick(int state){
 			}
 			break;
 		case ColumnLeft:
-			if(west){
+			if(west1){
 				state = ColumnLeftShift;
 			}
 			else{
@@ -411,7 +445,7 @@ int SM4Tick(int state){
 			}
 			break;
 		case ColumnLeftShift:
-			if(westTmp != 0xFE){
+			if(leftTmp != 0xFE){
 				state = ColumnLeft;
 			}
 			else{
@@ -424,18 +458,19 @@ int SM4Tick(int state){
 	}
 	switch(state){
 		case Wait4:
-			westTmp = 0xFE;
+			leftTmp = 0xFE;
 			break;
 		case ColumnLeft:
-			PORTC = 0xC0; PORTD = westTmp;
+			PORTC = 0xC0; PORTD = leftTmp;
 			break;
 		case ColumnLeftShift:
 			if(PORTD != 0x7F){
-				westTmp = westTmp << 1;
-				westTmp = westTmp | 0x01;
+				leftTmp = leftTmp << 1;
+				leftTmp = leftTmp | 0x01;
 			}
 			else if(PORTD == 0x7F){
-				west = false; south = true; north = false;
+				west1 = false;
+				randNum = true;
 			}
 		default:
 			break;
@@ -443,13 +478,14 @@ int SM4Tick(int state){
 	return state;
 }
 
-enum SM5_States{Wait5, ColumnRight, ColumnRight Shift};
-unsigned char rightTmp = 0x00;
 
-int SM5_States(int state){
+//SM5 Displays Right Arrow Columns
+enum SM5_States{Wait5, ColumnRight, ColumnRightShift};
+unsigned char rightTmp = 0x00;
+int SM5Tick(int state){
 	switch(state){
 		case Wait5:
-			if(east){
+			if(east1){
 				state = ColumnRight;
 			}
 			else{
@@ -457,9 +493,483 @@ int SM5_States(int state){
 			}
 			break;
 		case ColumnRight:
-			if(east){
-				state = ColumnRight
+			if(east1){
+				state = ColumnRightShift;
 			}
+			else{
+				state = Wait5;
+			}
+			break;
+		case ColumnRightShift:
+			if(rightTmp != 0xFE){
+				state = ColumnRight;
+			}
+			else{
+				state = Wait5;
+			}
+			break;
+		default:
+			state = Wait5;
+			break;
+	}
+	switch(state){
+		case Wait5:
+			rightTmp = 0xFE;
+			break;
+		case ColumnRight:
+			PORTC = 0x03; PORTD = rightTmp;
+			break;
+		case ColumnRightShift:
+			if(PORTD != 0x7F){
+				rightTmp = rightTmp << 1;
+				rightTmp = rightTmp | 0x01;
+			}
+			else if(PORTD == 0x7F){
+				east1 = false;
+				randNum = true;
+			}
+			break;
+		default:
+			break;
+	}
+	return state;
+}
+
+
+//SM7 Displays Up Arrow Columns - Speed 2
+enum SM7_States{Wait7, ColumnUp7, ColumnUpShift7};
+unsigned char upTmp2 = 0;
+int SM7Tick(int state){
+	switch(state){
+		case Wait7:
+			if(north2){
+				state = ColumnUp7;
+			}
+			else{
+				state = Wait7;
+			}
+			break;
+		case ColumnUp:
+			if(north2){
+				state = ColumnUpShift7;
+			}
+			else{
+				state = Wait7;
+			}
+			break;
+		case ColumnUpShift7:
+			if(upTmp2 != 0xFE){
+				state = ColumnUp7;
+			}
+			else{
+				state = Wait7;
+			}
+			break;
+		default:
+			state = Wait7;
+			break;
+	}
+	switch(state){
+		case Wait7:
+			upTmp2 = 0xFE;
+			break;
+		case ColumnUp7:
+			PORTC = 0x0C; PORTD = upTmp2;
+			break;
+		case ColumnUpShift7:
+			if(PORTD != 0x7F){
+				upTmp2 = upTmp2 << 1;
+				upTmp2 = upTmp2 | 0x01;
+			}
+			else if(PORTD == 0x7F){
+				north2 = false;
+				randNum = true;
+			}
+			break;
+		default:
+			break;
+	}
+	return state;
+}
+
+
+//SM8 Displays Down Arrow Columns - Speed 2
+enum SM8_States{Wait8, ColumnDown8, ColumnDownShift8};
+unsigned char downTmp2 = 0;
+int SM8Tick(int state){
+	switch(state){
+		case Wait8:
+			if(south2){
+				state = ColumnDown8;
+			}
+			else{
+				state = Wait8;
+			}
+			break;
+		case ColumnDown8:
+			if(south2){
+				state = ColumnDownShift8;
+			}
+			else{
+				state = Wait8;
+			}
+			break;
+		case ColumnDownShift8:
+			if(downTmp2 != 0xFE){
+				state = ColumnDown8;
+			}
+			else{
+				state = Wait8;
+			}
+			break;
+		default:
+			state = Wait8;
+			break;
+	}
+	switch(state){
+		case Wait8:
+			downTmp2 = 0xFE;
+			break;
+		case ColumnDown8:
+			PORTC = 0x30; PORTD = downTmp2;
+			break;
+		case ColumnDownShift8:
+			if(PORTD != 0x7F){
+				downTmp2 = downTmp2 << 1;
+				downTmp2 = downTmp2 | 0x01;
+			}
+			else if(PORTD == 0x7F){
+				south2 = false;
+				randNum = true;
+			}
+		default:
+			break;
+	}
+	return state;
+}
+
+
+//SM9 Displays Left Arrow Columns - Speed 2
+enum SM9_States{Wait9, ColumnLeft9, ColumnLeftShift9};
+unsigned char leftTmp2 = 0;
+
+
+int SM9Tick(int state){
+	switch(state){
+		case Wait9:
+			if(west2){
+				state = ColumnLeft9;
+			}
+			else{
+				state = Wait9;
+			}
+			break;
+		case ColumnLeft9:
+			if(west2){
+				state = ColumnLeftShift9;
+			}
+			else{
+				state = Wait9;
+			}
+			break;
+		case ColumnLeftShift9:
+			if(leftTmp2 != 0xFE){
+				state = ColumnLeft9;
+			}
+			else{
+				state = Wait9;
+			}
+			break;
+		default:
+			state = Wait9;
+			break;
+	}
+	switch(state){
+		case Wait9:
+			leftTmp2 = 0xFE;
+			break;
+		case ColumnLeft9:
+			PORTC = 0xC0; PORTD = leftTmp2;
+			break;
+		case ColumnLeftShift9:
+			if(PORTD != 0x7F){
+				leftTmp2 = leftTmp2 << 1;
+				leftTmp2 = leftTmp2 | 0x01;
+			}
+			else if(PORTD == 0x7F){
+				west2 = false;
+				randNum = true;
+			}
+		default:
+			break;
+	}
+	return state;
+}
+//SM10 Displays Right Arrow Columns - Speed 2
+enum SM10_States{Wait10, ColumnRight10, ColumnRightShift10};
+unsigned char rightTmp2 = 0x00;
+int SM10Tick(int state){
+	switch(state){
+		case Wait10:
+			if(east2){
+				state = ColumnRight10;
+			}
+			else{
+				state = Wait10;
+			}
+			break;
+		case ColumnRight10:
+			if(east2){
+				state = ColumnRightShift10;
+			}
+			else{
+				state = Wait10;
+			}
+			break;
+		case ColumnRightShift10:
+			if(rightTmp2 != 0xFE){
+				state = ColumnRight10;
+			}
+			else{
+				state = Wait10;
+			}
+			break;
+		default:
+			state = Wait10;
+			break;
+	}
+	switch(state){
+		case Wait10:
+			rightTmp2 = 0xFE;
+			break;
+		case ColumnRight10:
+			PORTC = 0x03; PORTD = rightTmp2;
+			break;
+		case ColumnRightShift10:
+			if(PORTD != 0x7F){
+				rightTmp2 = rightTmp2 << 1;
+				rightTmp2 = rightTmp2 | 0x01;
+			}
+			else if(PORTD == 0x7F){
+				east2 = false;
+				randNum = true;
+			}
+			break;
+		default:
+			break;
+	}
+	return state;
+}
+
+
+//Randomizes Columns
+enum SM6_States{Wait6, Toggle};
+unsigned char holder = 0x00;
+void SM6Tick(int state){
+	switch(state){
+		case Wait6:
+			if(startGame && !win){
+				state = Toggle;
+			}
+			else{
+				state = Wait6;
+			}
+			break;
+		case Toggle:
+			if(startGame && !win){
+				state = Toggle;
+			}
+			else{
+				state = Wait6;
+			}
+			break;
+		default:
+			break;
+	}
+	switch(state){
+		case Wait6:
+			break;
+		case Toggle:
+			if(randNum){
+				holder = rand() % 4;
+				switch(holder){
+					case 0:
+						if(test >= 5){north2 = true;}
+							else{north1 = true;}
+						randNum = false;
+						break;
+					case 1:
+						if(test >= 5){south2 = true;}
+							else{south1 = true;}
+						randNum = false;
+						break;
+					case 2:
+						if(test >= 5){east2 = true;}
+							else{east1 = true;}
+						randNum = false;
+						break;
+					case 3:
+						if(test >= 5){west2 = true;}
+							else{west1 = true;}
+						randNum = false;
+						break;
+				}
+			}
+		default:
+		break;
+	}
+}
+
+
+//Game Start Button
+enum SM11_States{Wait11, StartPress, StartRelease, InProgress, EndPress, EndRelease};
+int SM11Tick(int state){
+	b = PINA & 0x08;
+	
+	switch(state){
+		case Wait11:
+			if(!b){
+				state = StartPress;
+			}
+			else{
+				state = Wait11;
+			}
+			break;
+		case StartPress:
+			if(!b){
+				state = StartPress;
+			}
+			else{
+				state = StartRelease;
+			}
+			break;
+		case StartRelease:
+			state = InProgress;
+			break;
+		case InProgress:
+			if(!b){
+				state = EndPress;
+			}
+			else{
+				state = InProgress;
+			}
+			break;
+		case EndPress:
+			if(!b){
+				state = EndPress;
+			}
+			else{
+				state = EndRelease;
+			}
+			break;
+		case EndRelease:
+			state = Wait11;
+			break;
+		default:
+			state = Wait11;
+			break;
+	}
+	switch(state){
+		case Wait11:
+			break;
+		case StartPress:
+			break;
+		case StartRelease:
+			startGame = true;
+			win = false;
+			break;
+		case InProgress:
+			break;
+		case EndPress:
+			break;
+		case EndRelease:
+			startGame = false; randNum = true;
+			north1 = false; north2 = false; south1 = false; south2 = false;
+			west1 = false; west2 = false; east1 = false; east2 = false;
+			test = 0;
+		default:
+			break;
+	}
+	return state;
+}
+
+
+//Lose Message
+enum SM12_States{Wait12, Display12};	
+int SM12Tick(int state){
+	switch(state){
+		case Wait12:
+			if(!startGame){
+				state = Display12;
+			}
+			else{
+				state = Wait12;
+			}
+			break;
+		case Display12:
+			if(!startGame){
+				state = Display12;
+			}
+			else{
+				state = Wait12;
+			}
+			break;
+		default:
+			state = Wait12;
+			break;
+	}
+	switch(state){
+		case Wait12:
+			break;
+		case Display12:
+			for(int n = 0; n < sizeof(loseMessageX)/sizeof(unsigned char); n++){
+				PORTC = loseMessageX[n]; PORTD = loseMessageY[n];
+				_delay_ms(10);
+			}
+			break;
+		default:
+			break;
+	}
+	return state;
+}
+
+//Win??
+enum SM13_States{Wait13, Win13};
+int SM13Tick(int state){
+	switch(state){
+		case Wait13:
+			if(win){
+				state = Win13;
+			}
+			else{
+				state = Wait13;
+			}
+			break;
+		case Win13:
+			if(win){
+				state = Win13;
+			}
+			else{
+				state = Wait13;
+			}
+			break;
+		default:
+			state = Wait13;
+			break;
+	}
+	switch(state){
+		case Wait13:
+			break;
+		case Win13:
+			startGame = false;
+			set_PWM(0);
+			for(int m = 0; m < sizeof(finMessageX)/sizeof(unsigned char); m++){
+				PORTC = finMessageX[m]; PORTD = finMessageY[m];
+				_delay_ms(10);
+			}
+			break;
+		default:
+			break;
 	}
 }
 // --------END User defined FSMs-----------------------------------------------
@@ -478,12 +988,30 @@ unsigned long int SMTick1_calc = 1;
 unsigned long int SMTick2_calc = 100;
 unsigned long int SMTIck3_calc = 100;
 unsigned long int SMTIck4_calc = 100;
+unsigned long int SMTick5_calc = 100;
+unsigned long int SMTick6_calc = 1;
+unsigned long int SMTick7_calc = 50;
+unsigned long int SMTick8_calc = 50;
+unsigned long int SMTick9_calc = 50;
+unsigned long int SMTick10_calc = 50;
+unsigned long int SMTick11_calc = 1;
+unsigned long int SMTick12_calc = 1;
+unsigned long int SMTick13_calc = 1;
 
 //Calculating GCD
 unsigned long int tmpGCD = 1;
 tmpGCD = findGCD(SMTick1_calc, SMTick2_calc);
 tmpGCD = findGCD(tmpGCD, SMTIck3_calc);
 tmpGCD = findGCD(tmpGCD, SMTIck4_calc);
+tmpGCD = findGCD(tmpGCD, SMTick5_calc);
+tmpGCD = findGCD(tmpGCD, SMTick6_calc);
+tmpGCD = findGCD(tmpGCD, SMTick7_calc);
+tmpGCD = findGCD(tmpGCD, SMTick8_calc);
+tmpGCD = findGCD(tmpGCD, SMTick9_calc);
+tmpGCD = findGCD(tmpGCD, SMTick10_calc);
+tmpGCD = findGCD(tmpGCD, SMTick11_calc);
+tmpGCD = findGCD(tmpGCD, SMTick12_calc);
+tmpGCD = findGCD(tmpGCD, SMTick13_calc);
 
 //Greatest common divisor for all tasks or smallest time unit for tasks.
 unsigned long int GCD = tmpGCD;
@@ -493,11 +1021,20 @@ unsigned long int SMTick1_period = SMTick1_calc/GCD;
 unsigned long int SMTIck2_period = SMTick2_calc/GCD;
 unsigned long int SMTick3_period = SMTIck3_calc/GCD;
 unsigned long int SMTick4_period = SMTIck4_calc/GCD;
+unsigned long int SMTick5_period = SMTick5_calc/GCD;
+unsigned long int SMTick6_period = SMTick6_calc/GCD;
+unsigned long int SMTick7_period = SMTick7_calc/GCD;
+unsigned long int SMTick8_period = SMTick8_calc/GCD;
+unsigned long int SMTick9_period = SMTick9_calc/GCD;
+unsigned long int SMTick10_period = SMTick10_calc/GCD;
+unsigned long int SMTick11_period = SMTick11_calc/GCD;
+unsigned long int SMTick12_period = SMTick12_calc/GCD;
+unsigned long int SMTick13_period = SMTick13_calc/GCD;
 
 
 //Declare an array of tasks 
-static task task1, task2, task3, task4;
-task *tasks[] = {&task1, &task2, &task3, &task4};
+static task task1, task2, task3, task4, task5, task6, task7, task8, task9, task10, task11, task12, task13;
+task *tasks[] = {&task1, &task2, &task3, &task4, &task5, &task6, &task7, &task8, &task9, &task10, &task11, &task12, &task13};
 const unsigned short numTasks = sizeof(tasks)/sizeof(task*);
 
 // Task 1
@@ -524,7 +1061,59 @@ task4.period = SMTick4_period;
 task4.elapsedTime = SMTick4_period;
 task4.TickFct = &SM4Tick;
 
+//Task 5
+task5.state = -1;
+task5.period = SMTick5_period;
+task5.elapsedTime = SMTick5_period;
+task5.TickFct = &SM5Tick;
 
+//Task 6
+task6.state = -1;
+task6.period = SMTick6_period;
+task6.elapsedTime = SMTick6_period;
+task6.TickFct = &SM6Tick;
+
+// Task 7
+task7.state = -1;
+task7.period = SMTick7_period;
+task7.elapsedTime = SMTick7_period;
+task7.TickFct = &SM7Tick;
+
+// Task 8
+task8.state = -1;
+task8.period = SMTick8_period;
+task8.elapsedTime = SMTick8_period;
+task8.TickFct = &SM8Tick;
+
+// Task 9
+task9.state = -1;
+task9.period = SMTick9_period;
+task9.elapsedTime = SMTick9_period;
+task9.TickFct = &SM9Tick;
+
+// Task 10
+task10.state = -1;
+task10.period = SMTick10_period;
+task10.elapsedTime = SMTick10_period;
+task10.TickFct = &SM10Tick;
+
+// Task 11
+task11.state = -1;
+task11.period = SMTick11_period;
+task11.elapsedTime = SMTick11_period;
+task11.TickFct = &SM11Tick;
+
+// Task 12
+task12.state = -1;
+task12.period = SMTick12_period;
+task12.elapsedTime = SMTick12_period;
+task12.TickFct = &SM12Tick;
+
+// Task 13
+task13.state = -1;
+task13.period = SMTick13_period;
+task13.elapsedTime = SMTick13_period;
+task13.TickFct = &SM13Tick;
 
 // Set the timer and turn it on
 TimerSet(GCD);
