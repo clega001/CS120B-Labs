@@ -141,22 +141,28 @@ bool west1 = false; bool west2 = false;
 bool east1 = false; bool east2 = false;
 bool target = false;
 bool startGame = false;
+
+//Win?
 bool win = false;
 //--------End Shared/Global Variables------------------------------------------------
 
 void match(int direction){
-	if(startGame){
+	if(startGame && !win){
 		if(direction == 3 && PORTD == 0xBF && PORTC == 0xC0){
 			if(test != 9){test += 1; target = true;}
+				if(test == 9){win = true;}
 		}
 		else if(direction == 2 && PORTD == 0xBF && PORTC == 0x03){
 			if(test != 9){test += 1; target = true;}
+				if(test == 9){win = true;}
 		}
 		else if(direction == 1 && PORTD == 0xBF && PORTC == 0x0C){
 			if(test != 9){test += 1; target = true;}
+				if(test == 9){win = true;}
 		}
 		else if(direction == 4 && PORTD == 0xBF && PORTC == 0x30){
 			if(test != 9){test += 1; target = true;}
+				if(test == 9){win = true;}
 		}
 		else{
 			if(test == 9){win = true;}
@@ -227,6 +233,13 @@ int SM1Tick(int state){
 					direction = 0;
 				}
 				break;
+			}
+			else if(startGame && win){
+				set_PWM(0);
+				for(int m = 0; m < sizeof(finMessageX)/sizeof(unsigned char); m++){
+					PORTC = finMessageX[m]; PORTD = finMessageY[m];
+					_delay_ms(10);
+				}
 			}
 		case Up1:
 			if(x_axis <= 50){
@@ -308,15 +321,15 @@ int SM1Tick(int state){
 	}
 	return state;
 }
+
+
 //SM2 Displays Up Arrow Columns
-
-
 enum SM2_States{Wait2, ColumnUp, ColumnUpShift};
 unsigned char upTmp = 0;
 int SM2Tick(int state){
 	switch(state){
 		case Wait2:
-			if(north1){
+			if(north1 && !win){
 				state = ColumnUp;
 			}
 			else{
@@ -324,7 +337,7 @@ int SM2Tick(int state){
 			}
 			break;
 		case ColumnUp:
-			if(north1){
+			if(north1 && !win){
 				state = ColumnUpShift;
 			}
 			else{
@@ -373,7 +386,7 @@ unsigned char downTmp = 0;
 int SM3Tick(int state){
 	switch(state){
 		case Wait3:
-			if(south1){
+			if(south1 && !win){
 				state = ColumnDown;
 			}
 			else{
@@ -381,7 +394,7 @@ int SM3Tick(int state){
 			}
 			break;
 		case ColumnDown:
-			if(south1){
+			if(south1 && !win){
 				state = ColumnDownShift;
 			}
 			else{
@@ -429,7 +442,7 @@ unsigned char leftTmp = 0;
 int SM4Tick(int state){
 	switch(state){
 		case Wait4:
-			if(west1){
+			if(west1 && !win){
 				state = ColumnLeft;
 			}
 			else{
@@ -437,7 +450,7 @@ int SM4Tick(int state){
 			}
 			break;
 		case ColumnLeft:
-			if(west1){
+			if(west1 && !win){
 				state = ColumnLeftShift;
 			}
 			else{
@@ -485,7 +498,7 @@ unsigned char rightTmp = 0x00;
 int SM5Tick(int state){
 	switch(state){
 		case Wait5:
-			if(east1){
+			if(east1 && !win){
 				state = ColumnRight;
 			}
 			else{
@@ -493,7 +506,7 @@ int SM5Tick(int state){
 			}
 			break;
 		case ColumnRight:
-			if(east1){
+			if(east1 && !win){
 				state = ColumnRightShift;
 			}
 			else{
@@ -542,7 +555,7 @@ unsigned char upTmp2 = 0;
 int SM7Tick(int state){
 	switch(state){
 		case Wait7:
-			if(north2){
+			if(north2 && !win){
 				state = ColumnUp7;
 			}
 			else{
@@ -550,7 +563,7 @@ int SM7Tick(int state){
 			}
 			break;
 		case ColumnUp:
-			if(north2){
+			if(north2 && !win){
 				state = ColumnUpShift7;
 			}
 			else{
@@ -599,7 +612,7 @@ unsigned char downTmp2 = 0;
 int SM8Tick(int state){
 	switch(state){
 		case Wait8:
-			if(south2){
+			if(south2 && !win){
 				state = ColumnDown8;
 			}
 			else{
@@ -607,7 +620,7 @@ int SM8Tick(int state){
 			}
 			break;
 		case ColumnDown8:
-			if(south2){
+			if(south2 && !win){
 				state = ColumnDownShift8;
 			}
 			else{
@@ -652,12 +665,10 @@ int SM8Tick(int state){
 //SM9 Displays Left Arrow Columns - Speed 2
 enum SM9_States{Wait9, ColumnLeft9, ColumnLeftShift9};
 unsigned char leftTmp2 = 0;
-
-
 int SM9Tick(int state){
 	switch(state){
 		case Wait9:
-			if(west2){
+			if(west2 && !win){
 				state = ColumnLeft9;
 			}
 			else{
@@ -665,7 +676,7 @@ int SM9Tick(int state){
 			}
 			break;
 		case ColumnLeft9:
-			if(west2){
+			if(west2 && !win){
 				state = ColumnLeftShift9;
 			}
 			else{
@@ -705,13 +716,15 @@ int SM9Tick(int state){
 	}
 	return state;
 }
+
+
 //SM10 Displays Right Arrow Columns - Speed 2
 enum SM10_States{Wait10, ColumnRight10, ColumnRightShift10};
 unsigned char rightTmp2 = 0x00;
 int SM10Tick(int state){
 	switch(state){
 		case Wait10:
-			if(east2){
+			if(east2 && !win){
 				state = ColumnRight10;
 			}
 			else{
@@ -719,7 +732,7 @@ int SM10Tick(int state){
 			}
 			break;
 		case ColumnRight10:
-			if(east2){
+			if(east2 && !win){
 				state = ColumnRightShift10;
 			}
 			else{
@@ -883,7 +896,7 @@ int SM11Tick(int state){
 		case EndPress:
 			break;
 		case EndRelease:
-			startGame = false; randNum = true;
+			startGame = false; randNum = true; win = false;
 			north1 = false; north2 = false; south1 = false; south2 = false;
 			west1 = false; west2 = false; east1 = false; east2 = false;
 			test = 0;
@@ -899,7 +912,7 @@ enum SM12_States{Wait12, Display12};
 int SM12Tick(int state){
 	switch(state){
 		case Wait12:
-			if(!startGame){
+			if(!startGame && !win){
 				state = Display12;
 			}
 			else{
@@ -961,7 +974,6 @@ int SM13Tick(int state){
 		case Wait13:
 			break;
 		case Win13:
-			startGame = false;
 			set_PWM(0);
 			for(int m = 0; m < sizeof(finMessageX)/sizeof(unsigned char); m++){
 				PORTC = finMessageX[m]; PORTD = finMessageY[m];
